@@ -14,7 +14,7 @@ def get_sheet_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
-@app.route('/', methods=['POST'])
+@app.route('/webhook', methods=['POST'])
 def check_stock():
     data = request.json
     message = data.get("message", "").lower()
