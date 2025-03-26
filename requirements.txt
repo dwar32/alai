@@ -1,5 +1,4 @@
-flask
-requests
+Flask
+gspread
+oauth2client
 pandas
-openpyxl
-gunicorn
