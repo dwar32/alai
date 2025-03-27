@@ -2,27 +2,21 @@ from flask import Flask, request, jsonify
 import re
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import logging
-
-# Настройка логгера
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from oauth2client.service_account import ServiceAccountCredentials
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
 def get_sheet_data():
-    logger.info("Чтение данных из Google Sheets")
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key("1_jgw8skMLI1RH9NM051M0Lqp464QzjN5LWnlR5HgqbM").sheet1
     data = sheet.get_all_records(head=1)
-    logger.info(f"Успешно считано {len(data)} строк из таблицы")
     return pd.DataFrame(data)
 
 def extract_article(text):
-    logger.info(f"Извлечение артикула из текста: {text}")
     match = re.search(r"\b[A-ZА-Я0-9\-]{4,}\b", text)
     return match.group(0) if match else None
 
@@ -30,43 +24,42 @@ def extract_article(text):
 def webhook():
     try:
         data = request.get_json(force=True)
-        logger.info(f"Получены данные: {data}")
-    except Exception as e:
-        logger.error(f"Ошибка при получении данных: {e}")
-        return jsonify({"response": "Ошибка обработки данных", "status": "error"})
+        logging.info("Получены данные: %s", data)
 
-    message = data.get("message", "")
-    logger.info(f"Текст сообщения: {message}")
-    article = extract_article(message)
+        if not isinstance(data, list) or not data:
+            return jsonify({"response": "Неверный формат входных данных", "status": "error"})
 
-    if not article:
-        logger.info("Артикул не распознан")
-        return jsonify({"response": "Не удалось распознать артикул.", "status": "ok"})
+        last_message = data[0].get("contact", {}).get("last_message", "")
+        if not last_message:
+            return jsonify({"response": "Сообщение не найдено", "status": "error"})
 
-    df = get_sheet_data()
+        article = extract_article(last_message)
+        if not article:
+            return jsonify({"response": "Не удалось распознать артикул.", "status": "ok"})
 
-    if "Артикул" not in df.columns:
-        logger.error("Колонка 'Артикул' не найдена")
-        return jsonify({"response": "Ошибка: колонка 'Артикул' не найдена в таблице.", "status": "error"})
+        df = get_sheet_data()
+        if "Артикул" not in df.columns:
+            return jsonify({"response": "Ошибка: колонка 'Артикул' не найдена в таблице.", "status": "error"})
 
-    match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
-
-    if not match.empty:
-        size_columns = [str(i) for i in range(19, 42)] + ["56"]
-        size_columns = [col for col in size_columns if col in df.columns]
-        sizes = match.iloc[0][size_columns]
-        available_sizes = [size for size in sizes.index if sizes[size]]
-        logger.info(f"Артикул {article} найден. Доступные размеры: {available_sizes}")
-        if available_sizes:
-            return jsonify({
-                "response": f"Товар {article} есть в наличии. Размеры: {', '.join(available_sizes)}",
-                "status": "ok"
-            })
+        match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
+        if not match.empty:
+            size_columns = [str(i) for i in range(19, 42)] + ["56"]
+            size_columns = [col for col in size_columns if col in df.columns]
+            sizes = match.iloc[0][size_columns]
+            available_sizes = [size for size in sizes.index if sizes[size]]
+            if available_sizes:
+                return jsonify({
+                    "response": f"Товар {article} есть в наличии. Размеры: {', '.join(available_sizes)}",
+                    "status": "ok"
+                })
+            else:
+                return jsonify({"response": f"Товар {article} найден, но все размеры распроданы.", "status": "ok"})
         else:
-            return jsonify({"response": f"Товар {article} найден, но все размеры распроданы.", "status": "ok"})
+            return jsonify({"response": "Артикул не найден в базе.", "status": "ok"})
 
-    logger.info(f"Артикул {article} не найден в базе.")
-    return jsonify({"response": "Артикул не найден в базе.", "status": "ok"})
+    except Exception as e:
+        logging.exception("Ошибка при обработке запроса")
+        return jsonify({"response": "Ошибка обработки данных", "status": "error"})
 
 @app.route("/", methods=["GET"])
 def index():
@@ -74,3 +67,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
