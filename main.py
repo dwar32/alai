@@ -20,13 +20,14 @@ def extract_article(text):
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json()
+    try:
+        data = request.get_json(force=True)  # даже если Content-Type не указан
+        print("Полученные данные:", data)
+    except:
+        return jsonify({"response": "Ошибка: данные не в формате JSON", "status": "error"})
 
-    # 👇 Логируем всё, что прислал SMMBOT
-    print("🔥 Полученные данные от SMMBOT:", data)
-
-    # Временно отключим логику, просто вернем тестовый ответ
-    return jsonify({"response": "Получено!", "status": "ok"})
+    message = data.get("message", "")
+    article = extract_article(message)
 
 
     if not article:
