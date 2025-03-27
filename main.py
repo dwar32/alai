@@ -11,7 +11,7 @@ def get_sheet_data():
     creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key("1_jgw8skMLI1RH9NM051M0Lqp464QzjN5LWnlR5HgqbM").sheet1
-    data = sheet.get_all_records(head=2)  # Вторая строка — это заголовки
+    data = sheet.get_all_records(head=1)  
     return pd.DataFrame(data)
 
 def extract_article(text):
@@ -36,7 +36,7 @@ def webhook():
 
     if not match.empty:
         size_columns = [str(i) for i in range(19, 42)] + ["56"]
-        size_columns = [col for col in size_columns if col in df.columns]  # Только существующие
+        size_columns = [col for col in size_columns if col in df.columns]  
         sizes = match.iloc[0][size_columns]
         available_sizes = [size for size in sizes.index if sizes[size]]
         if available_sizes:
