@@ -25,42 +25,41 @@ def webhook():
         print("DEBUG | Полученные данные:", data)
 
         message = data.get("message", "")
-        print("DEBUG | Текст сообщения:", message)
+        print("DEBUG | Извлечённое сообщение:", message)
 
         article = extract_article(message)
-        print("DEBUG | Найденный артикул:", article)
+        print("DEBUG | Извлечённый артикул:", article)
 
         if not article:
             return jsonify({"response": "Не удалось распознать артикул.", "status": "ok"})
 
         df = get_sheet_data()
+        print("DEBUG | Заголовки таблицы:", df.columns.tolist())
 
         if "Артикул" not in df.columns:
             return jsonify({"response": "Ошибка: колонка 'Артикул' не найдена в таблице.", "status": "error"})
 
         match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
+        print("DEBUG | Совпадения по артикулу:", match.to_dict())
 
         if not match.empty:
             size_columns = [str(i) for i in range(19, 42)] + ["56"]
             size_columns = [col for col in size_columns if col in df.columns]
             sizes = match.iloc[0][size_columns]
             available_sizes = [size for size in sizes.index if sizes[size]]
-            
+            print("DEBUG | Доступные размеры:", available_sizes)
             if available_sizes:
                 return jsonify({
                     "response": f"Товар {article} есть в наличии. Размеры: {', '.join(available_sizes)}",
                     "status": "ok"
                 })
             else:
-                return jsonify({
-                    "response": f"Товар {article} найден, но все размеры распроданы.",
-                    "status": "ok"
-                })
+                return jsonify({"response": f"Товар {article} найден, но все размеры распроданы.", "status": "ok"})
 
         return jsonify({"response": "Артикул не найден в базе.", "status": "ok"})
 
     except Exception as e:
-        print("Ошибка при обработке:", e)
+        print("ERROR | Произошла ошибка при обработке запроса:", str(e))
         return jsonify({"response": "Ошибка обработки данных", "status": "error"})
 
 @app.route("/", methods=["GET"])
