@@ -10,8 +10,8 @@ def get_sheet_data():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_key("1_jgw8skMLI1RH9NM051M0Lqp464QzjN5LWnlR5HgqbM").sheet1
-    data = sheet.get_all_records()
+    sheet = client.open_by_key("1aKMLerOrjw6Sv2qJeURNE03srplj9O4w").sheet1
+    data = sheet.get_all_records(head=2)  # указываем, что заголовки во второй строке
     return pd.DataFrame(data)
 
 @app.route("/webhook", methods=["POST"])
