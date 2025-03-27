@@ -11,11 +11,7 @@ def get_sheet_data():
     creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key("1_jgw8skMLI1RH9NM051M0Lqp464QzjN5LWnlR5HgqbM").sheet1
-    headers = ["фирма", "Артикул", "Описание товара", "Цвет", "пол", "сезон",
-               "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
-               "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41",
-               "Остаток", "56"]
-    data = sheet.get_all_records(head=2)
+    data = sheet.get_all_records(head=2)  # Вторая строка — это заголовки
     return pd.DataFrame(data)
 
 def extract_article(text):
@@ -32,10 +28,15 @@ def webhook():
         return jsonify({"response": "Не удалось распознать артикул.", "status": "ok"})
 
     df = get_sheet_data()
+
+    if "Артикул" not in df.columns:
+        return jsonify({"response": "Ошибка: колонка 'Артикул' не найдена в таблице.", "status": "error"})
+
     match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
 
     if not match.empty:
         size_columns = [str(i) for i in range(19, 42)] + ["56"]
+        size_columns = [col for col in size_columns if col in df.columns]  # Только существующие
         sizes = match.iloc[0][size_columns]
         available_sizes = [size for size in sizes.index if sizes[size]]
         if available_sizes:
