@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Подключение к Google Sheets
 def get_sheet_data():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("gpt-key.json", scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open("Остатки_бот").sheet1
     data = sheet.get_all_records()
