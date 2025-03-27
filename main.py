@@ -21,8 +21,13 @@ def extract_article(text):
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    message = data.get("message", "")
-    article = extract_article(message)
+
+    # 👇 Логируем всё, что прислал SMMBOT
+    print("🔥 Полученные данные от SMMBOT:", data)
+
+    # Временно отключим логику, просто вернем тестовый ответ
+    return jsonify({"response": "Получено!", "status": "ok"})
+
 
     if not article:
         return jsonify({"response": "Не удалось распознать артикул.", "status": "ok"})
