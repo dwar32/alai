@@ -21,10 +21,13 @@ def extract_article(text):
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        data = request.get_json(force=True)  # даже если Content-Type не указан
-        print("Полученные данные:", data)
-    except:
-        return jsonify({"response": "Ошибка: данные не в формате JSON", "status": "error"})
+        data = request.get_json(force=True)
+        print("DEBUG | Полученные данные:", data)
+        return jsonify({"response": f"OK! Получено: {data}", "status": "ok"})
+    except Exception as e:
+        print("Ошибка при получении данных:", e)
+        return jsonify({"response": "Ошибка обработки данных", "status": "error"})
+
 
     message = data.get("message", "")
     article = extract_article(message)
