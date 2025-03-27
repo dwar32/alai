@@ -14,7 +14,7 @@ def get_sheet_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
-@app.route('/webhook', methods=['POST'])
+@app.route("/webhook", methods=["POST"])
 def check_stock():
     data = request.json
     message = data.get("message", "").lower()
@@ -35,4 +35,4 @@ def index():
     return "Бот работает"
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host="0.0.0.0", port=5000)
