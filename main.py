@@ -34,51 +34,51 @@ def get_caption_from_media(media_id: str) -> str | None:
         return response.json().get("caption")
     return None
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    try:
+@app.route("/ig-webhook", methods=["GET", "POST"])
+def ig_webhook():
+    if request.method == "GET":
+        verify_token = "shoyo_verify_token"  # токен для Meta верификации
+        if request.args.get("hub.verify_token") == verify_token:
+            return request.args.get("hub.challenge"), 200
+        return "Verification token mismatch", 403
+
+    if request.method == "POST":
         data = request.get_json(force=True)
-        logging.info("Получены данные: %s", data)
+        logging.info("📩 IG Webhook пришёл: %s", data)
 
-        if not isinstance(data, dict):
-            return jsonify({"response": "Неверный формат входных данных", "status": "error"})
+        try:
+            messaging = data["entry"][0]["messaging"][0]
+            sender_id = messaging["sender"]["id"]
+            attachments = messaging.get("message", {}).get("attachments", [])
 
-        # Получаем media_id из Make
-        media_id = data.get("media_id")
-        if not media_id:
-            return jsonify({"response": "media_id не передан", "status": "error"})
+            for a in attachments:
+                if a.get("type") == "share":
+                    media_id = a["payload"]["id"]
 
-        caption = get_caption_from_media(media_id)
-        if not caption:
-            return jsonify({"response": "Не удалось получить caption по media_id", "status": "error"})
+                    # Вызываем основной /webhook
+                    r = requests.post("https://alai-2.onrender.com/webhook", json={"media_id": media_id})
+                    result = r.json()
+                    message_text = result.get("response", "Извините, произошла ошибка.")
 
-        article = extract_article(caption)
-        if not article:
-            return jsonify({"response": "Артикул не найден в тексте поста", "status": "ok"})
+                    # Отправляем ответ в директ
+                    send_reply_to_user(sender_id, message_text)
 
-        df = get_sheet_data()
-        if "Артикул" not in df.columns:
-            return jsonify({"response": "Колонка 'Артикул' не найдена в таблице", "status": "error"})
+        except Exception as e:
+            logging.exception("Ошибка обработки входящего сообщения")
 
-        match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
-        if not match.empty:
-            size_columns = [str(i) for i in range(19, 42)] + ["56"]
-            size_columns = [col for col in size_columns if col in df.columns]
-            sizes = match.iloc[0][size_columns]
-            available_sizes = [size for size in sizes.index if sizes[size]]
-            if available_sizes:
-                return jsonify({
-                    "response": f"Товар {article} есть в наличии. Размеры: {', '.join(available_sizes)}",
-                    "status": "ok"
-                })
-            else:
-                return jsonify({"response": f"Товар {article} найден, но все размеры распроданы.", "status": "ok"})
-        else:
-            return jsonify({"response": "Артикул не найден в базе.", "status": "ok"})
+        return "ok", 200
 
-    except Exception as e:
-        logging.exception("Ошибка при обработке запроса")
-        return jsonify({"response": "Ошибка обработки данных", "status": "error"})
+def send_reply_to_user(recipient_id, message_text):
+    url = f"https://graph.facebook.com/v19.0/me/messages"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "recipient": {"id": recipient_id},
+        "message": {"text": message_text},
+        "messaging_type": "RESPONSE",
+        "access_token": ACCESS_TOKEN
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    logging.info("Ответ отправлен: %s", response.text)
 
 @app.route("/", methods=["GET"])
 def index():
