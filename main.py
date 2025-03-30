@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "ВАШ_ТОКЕН_ОТ_INSTAGRAM_GRAPH_API"  # вставь сюда рабочий токен
+ACCESS_TOKEN = "EAAJjA01uR54BO4yT2zWAzWA8HOqfBnHylvb4cokZAZBvA0E4W12ngKYHlwJdQFhEutqGvxiEHLTGhdm799ZAvqDAtHune9LTvLsWNd0mHdqIZB4zyjZCFZAZAoZCyZCaRZC7Mur8ZCKebI9iSZCtSEhicROOxP3yiexnJhUEOUDpDcPTaqakU6G0JkK2osqLhZAz0M9QdH28yU6vmLmR3NP6MuAZDZD"  # вставь сюда рабочий токен
 
 def get_sheet_data():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
