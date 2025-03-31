@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "EAAJjA01uR54BO4yT2zWAzWA8HOqfBnHylvb4cokZAZBvA0E4W12ngKYHlwJdQFhEutqGvxiEHLTGhdm799ZAvqDAtHune9LTvLsWNd0mHdqIZB4zyjZCFZAZAoZCyZCaRZC7Mur8ZCKebI9iSZCtSEhicROOxP3yiexnJhUEOUDpDcPTaqakU6G0JkK2osqLhZAz0M9QdH28yU6vmLmR3NP6MuAZDZD"  # вставь сюда рабочий токен
+ACCESS_TOKEN = "EAAJmTjZBn47sBO64cflQ1OOGNwxvdUHZBrT7atzDyWKrEfRqSamIgBZBRoeVkf9tW1lELLmaS32lIULcWNiJ7GXBhZAzpR0m9uWb3MOZCC72yZBURhRSAU8JvM11hn7TviZC0NFUUntd3sx91vSHQgCwUZAiYXncPAMe3bSCEfkOKaJ5svZCSRVtx1mDv8Vf4a7aLqZBtZB24QNT1yR5jNoynIA9qRh8s0ZD"  # вставь сюда рабочий токен
 
 def get_sheet_data():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
