@@ -9,8 +9,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "EAAJmTjZBn47sBO64cflQ1OOGNwxvdUHZBrT7atzDyWKrEfRqSamIgBZBRoeVkf9tW1lELLmaS32lIULcWNiJ7GXBhZAzpR0m9uWb3MOZCC72yZBURhRSAU8JvM11hn7TviZC0NFUUntd3sx91vSHQgCwUZAiYXncPAMe3bSCEfkOKaJ5svZCSRVtx1mDv8Vf4a7aLqZBtZB24QNT1yR5jNoynIA9qRh8s0ZD"  # вставь сюда рабочий токен
+ACCESS_TOKEN = "EAAJmTjZBn47sBO0OiRnIWYquHXhhORFLxg3ZAH0fk69adbe1lFS4dzbRD0FZCOmvn67Byx7qVNeHlI9eJQs37H1A5UyhWCBHWUi0pF5fE6o9DxFDNSAww4gEZAF4yTVMNjyT5BDzFORJfc1qgr3w6ItHBqbd6MgU6XKKxOm1pTxTmgn3X2GyrRHvFdnlZCTwZA2maatSse76vb2NX7ZCLEPQIZCQ5cIZD"
 
+# 🔧 Получение данных из Google Таблицы
 def get_sheet_data():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/gpt-key.json", scope)
@@ -19,26 +20,16 @@ def get_sheet_data():
     data = sheet.get_all_records(head=1)
     return pd.DataFrame(data)
 
+# 🔍 Извлечение артикула
 def extract_article(text):
     match = re.search(r"\b[A-ZА-Я0-9\-]{4,}\b", text)
     return match.group(0) if match else None
 
-def get_caption_from_media(media_id: str) -> str | None:
-    url = f"https://graph.facebook.com/v19.0/{media_id}"
-    params = {
-        "fields": "caption",
-        "access_token": ACCESS_TOKEN
-    }
-    response = requests.get(url, params=params)
-    if response.ok:
-        return response.json().get("caption")
-    return None
-
+# 📩 Обработка входящих сообщений Instagram (через Webhook)
 @app.route("/ig-webhook", methods=["GET", "POST"])
 def ig_webhook():
     if request.method == "GET":
-        verify_token = "shoyo_verify_token"  # токен для Meta верификации
-        if request.args.get("hub.verify_token") == verify_token:
+        if request.args.get("hub.verify_token") == "shoyo_verify_token":
             return request.args.get("hub.challenge"), 200
         return "Verification token mismatch", 403
 
@@ -55,21 +46,58 @@ def ig_webhook():
                 if a.get("type") == "share":
                     media_id = a["payload"]["id"]
 
-                    # Вызываем основной /webhook
-                    r = requests.post("https://alai-2.onrender.com/webhook", json={"media_id": media_id})
-                    result = r.json()
-                    message_text = result.get("response", "Извините, произошла ошибка.")
+                    # 🧾 Получение caption по media_id
+                    caption = get_caption_from_media(media_id)
+                    if not caption:
+                        send_reply_to_user(sender_id, "Не удалось получить описание поста.")
+                        return "ok", 200
 
-                    # Отправляем ответ в директ
-                    send_reply_to_user(sender_id, message_text)
+                    # 🆔 Поиск артикула
+                    article = extract_article(caption)
+                    if not article:
+                        send_reply_to_user(sender_id, "Не удалось распознать артикул.")
+                        return "ok", 200
+
+                    # 📦 Проверка в таблице
+                    response = search_article_in_sheet(article)
+                    send_reply_to_user(sender_id, response)
 
         except Exception as e:
-            logging.exception("Ошибка обработки входящего сообщения")
+            logging.exception("Ошибка обработки входящего IG-сообщения")
 
         return "ok", 200
 
+# 📥 Получение caption
+def get_caption_from_media(media_id: str) -> str | None:
+    url = f"https://graph.facebook.com/v19.0/{media_id}"
+    params = {"fields": "caption", "access_token": ACCESS_TOKEN}
+    response = requests.get(url, params=params)
+    if response.ok:
+        return response.json().get("caption")
+    return None
+
+# 🔎 Поиск артикула в таблице
+def search_article_in_sheet(article: str) -> str:
+    df = get_sheet_data()
+    if "Артикул" not in df.columns:
+        return "Ошибка: колонка 'Артикул' не найдена в таблице."
+
+    match = df[df["Артикул"].astype(str).str.lower() == article.lower()]
+    if not match.empty:
+        size_columns = [str(i) for i in range(19, 42)] + ["56"]
+        size_columns = [col for col in size_columns if col in df.columns]
+        sizes = match.iloc[0][size_columns]
+        available = [size for size in sizes.index if sizes[size]]
+        if available:
+            return f"Товар {article} в наличии. Размеры: {', '.join(available)}"
+        else:
+            return f"Товар {article} найден, но размеры закончились."
+    else:
+        return "Артикул не найден в базе."
+
+# 💬 Отправка ответа в Instagram
 def send_reply_to_user(recipient_id, message_text):
-    url = f"https://graph.facebook.com/v19.0/me/messages"
+    url = "https://graph.facebook.com/v19.0/me/messages"
     headers = {"Content-Type": "application/json"}
     payload = {
         "recipient": {"id": recipient_id},
@@ -78,11 +106,14 @@ def send_reply_to_user(recipient_id, message_text):
         "access_token": ACCESS_TOKEN
     }
     response = requests.post(url, headers=headers, json=payload)
-    logging.info("Ответ отправлен: %s", response.text)
+    logging.info("📤 Ответ отправлен: %s", response.text)
 
 @app.route("/", methods=["GET"])
 def index():
     return "Бот активен"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
