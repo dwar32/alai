@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "EAAJmTjZBn47sBO0OiRnIWYquHXhhORFLxg3ZAH0fk69adbe1lFS4dzbRD0FZCOmvn67Byx7qVNeHlI9eJQs37H1A5UyhWCBHWUi0pF5fE6o9DxFDNSAww4gEZAF4yTVMNjyT5BDzFORJfc1qgr3w6ItHBqbd6MgU6XKKxOm1pTxTmgn3X2GyrRHvFdnlZCTwZA2maatSse76vb2NX7ZCLEPQIZCQ5cIZD"
+ACCESS_TOKEN = "EAAJmTjZBn47sBO0OiRnIWYquHXhhORFLxg3ZAH0fk69adbe1lFS4dzbRD0FZCOmvn67Byx7qVNeHlI9eJQs37H1A5UyhWCBHWUi0pF5fE6o9DxFDNSAww4gEZAF4yTVMNjyT5BDzFORJfc1qgr3w6ItHBqbd6MgU6XKKxOm1pTxTmgn3X2GyrRHvFdnlZCTwZA2maatSse76vb2NX7ZCLEPQIZCQ5cIZD"  # ВСТАВЬ СЮДА АКТУАЛЬНЫЙ ТОКЕН
 
 # 🔧 Получение данных из Google Таблицы
 def get_sheet_data():
@@ -25,7 +25,7 @@ def extract_article(text):
     match = re.search(r"\b[A-ZА-Я0-9\-]{4,}\b", text)
     return match.group(0) if match else None
 
-# 📩 Обработка входящих сообщений Instagram (через Webhook)
+# 📩 Webhook для Instagram
 @app.route("/ig-webhook", methods=["GET", "POST"])
 def ig_webhook():
     if request.method == "GET":
@@ -45,29 +45,26 @@ def ig_webhook():
             for a in attachments:
                 if a.get("type") == "share":
                     media_id = a["payload"]["id"]
-
-                    # 🧾 Получение caption по media_id
                     caption = get_caption_from_media(media_id)
+
                     if not caption:
                         send_reply_to_user(sender_id, "Не удалось получить описание поста.")
                         return "ok", 200
 
-                    # 🆔 Поиск артикула
                     article = extract_article(caption)
                     if not article:
                         send_reply_to_user(sender_id, "Не удалось распознать артикул.")
                         return "ok", 200
 
-                    # 📦 Проверка в таблице
                     response = search_article_in_sheet(article)
                     send_reply_to_user(sender_id, response)
 
         except Exception as e:
-            logging.exception("Ошибка обработки входящего IG-сообщения")
+            logging.exception("Ошибка при обработке входящего IG сообщения")
 
         return "ok", 200
 
-# 📥 Получение caption
+# 📥 Получение caption по media_id
 def get_caption_from_media(media_id: str) -> str | None:
     url = f"https://graph.facebook.com/v19.0/{media_id}"
     params = {"fields": "caption", "access_token": ACCESS_TOKEN}
@@ -76,7 +73,7 @@ def get_caption_from_media(media_id: str) -> str | None:
         return response.json().get("caption")
     return None
 
-# 🔎 Поиск артикула в таблице
+# 🔎 Проверка артикула в таблице
 def search_article_in_sheet(article: str) -> str:
     df = get_sheet_data()
     if "Артикул" not in df.columns:
@@ -95,7 +92,7 @@ def search_article_in_sheet(article: str) -> str:
     else:
         return "Артикул не найден в базе."
 
-# 💬 Отправка ответа в Instagram
+# 💬 Ответ в Instagram
 def send_reply_to_user(recipient_id, message_text):
     url = "https://graph.facebook.com/v19.0/me/messages"
     headers = {"Content-Type": "application/json"}
@@ -111,9 +108,6 @@ def send_reply_to_user(recipient_id, message_text):
 @app.route("/", methods=["GET"])
 def index():
     return "Бот активен"
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
