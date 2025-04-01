@@ -9,7 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "EAAJmTjZBn47sBO0ZCvgkUJ0MYG9JG2yPztq5ZA6nclDY0pOCY4hFvXZC13Wx5hjBLtpLWD6tl85jX3e8T3MEsZAMV4p8ubkIkDLYmV3eaZCCAHR1B0Xk26mZBKduYZCGJRGMdQDzRCOKetSacGQZC9w8ciZBPLFKMdqEXoUYWJz33UZCkemcCWmJZAfEB0IWQw9O7W9OdhsTt63hc9hAZCeumC1kphUex"  # ⬅️ ВСТАВЬ СЮДА АКТУАЛЬНЫЙ PAGE TOKEN
+ACCESS_TOKEN = "EAAJmTjZBn47sBO9HyZBbHyAN4ZBOCInBQVwsz6dKT0YDj0EB29loDM7z0K4rCw8AfJRglzz5DJUIh9zwuh9migM8Cl0a3syl8cR0FlhZB6rfPdsm0ZC233wFGQasr3ZBkasA5ZAWDoC1SHb5L7N1yDyhcwu22EiOrvFyxEaZAYtmsTAcpgJ299Q6m2n7JqoIIAcDUy7RL3TdWmpvRmXOe9ZCdlvbt"  # ⬅️ ВСТАВЬ СЮДА АКТУАЛЬНЫЙ PAGE TOKEN
 
 # ✅ Google Таблица
 def get_sheet_data():
