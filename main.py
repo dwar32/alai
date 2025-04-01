@@ -9,7 +9,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-ACCESS_TOKEN = "EAAJmTjZBn47sBO9HyZBbHyAN4ZBOCInBQVwsz6dKT0YDj0EB29loDM7z0K4rCw8AfJRglzz5DJUIh9zwuh9migM8Cl0a3syl8cR0FlhZB6rfPdsm0ZC233wFGQasr3ZBkasA5ZAWDoC1SHb5L7N1yDyhcwu22EiOrvFyxEaZAYtmsTAcpgJ299Q6m2n7JqoIIAcDUy7RL3TdWmpvRmXOe9ZCdlvbt"  # ⬅️ ВСТАВЬ СЮДА АКТУАЛЬНЫЙ PAGE TOKEN
+PAGE_TOKENS = {
+    "458871213976890": "EAAJmTjZBn47sBOZBeeLCc1cr1bZCncoL5Q9NgiSYSeYxJ4qmz9oM2uS2GxEWlq90x4NzfJ4eolIHB4dt7ePRjJHd5JdoMCytwtCsuZBeYWBmQnzg2cOd28bKZBV4q8nOE7A0ed3cFQkQSyOc9CCNR792zQAS8qnFctY74Wsf3BAFKZC25ZAKJ68ITeRv7CZCf5L3m3oIxUeoL4gK1cZA0RYdD7Kba",  # 🔁 вставь актуальный токен для Shoyo.ai
+    "538954369310942": "EAAJmTjZBn47sBO9rNBVnXirzJI4aqO4VYvA334mXtUhfSSohWh2edyYxSYGcFZBCN2fHPLT5pM6sjRdQZCzZANQwZBHunNxKB069PKfoFq3ApfRvm0KJOpQetzxvuo7wCSa6hmeHPxrik66fzg7E0FVSoBIjauDlhL6PI08b5J1bNQML4MGWjH7eBr9N8UqX9xj1cbZCpMMrGsY4bKKeyjq1os"   # 🔁 вставь актуальный токен для Shoyo.nn
+}
 
 # ✅ Google Таблица
 def get_sheet_data():
@@ -26,9 +29,9 @@ def extract_article(text):
     return match.group(0) if match else None
 
 # 📥 Получение caption по media_id
-def get_caption_from_media(media_id: str) -> str | None:
+def get_caption_from_media(media_id: str, token: str) -> str | None:
     url = f"https://graph.facebook.com/v19.0/{media_id}"
-    params = {"fields": "caption", "access_token": ACCESS_TOKEN}
+    params = {"fields": "caption", "access_token": token}
     response = requests.get(url, params=params)
     if response.ok:
         return response.json().get("caption")
@@ -54,14 +57,14 @@ def search_article_in_sheet(article: str) -> str:
         return "Артикул не найден в базе."
 
 # 📤 Отправка ответа в Instagram
-def send_reply_to_user(recipient_id, message_text):
+def send_reply_to_user(recipient_id, message_text, token):
     url = "https://graph.facebook.com/v19.0/me/messages"
     headers = {"Content-Type": "application/json"}
     payload = {
         "recipient": {"id": recipient_id},
         "message": {"text": message_text},
         "messaging_type": "RESPONSE",
-        "access_token": ACCESS_TOKEN
+        "access_token": token
     }
     response = requests.post(url, headers=headers, json=payload)
     logging.info("📤 Ответ отправлен: %s", response.text)
@@ -84,29 +87,33 @@ def ig_webhook():
             sender_id = value.get("sender", {}).get("id")
             message = value.get("message", {}).get("text")
             attachments = value.get("message", {}).get("attachments", [])
+            page_id = data["entry"][0]["id"]
+            token = PAGE_TOKENS.get(page_id)
 
-            # 🔁 Обработка пересланного поста
+            if not token:
+                logging.warning(f"Нет токена для page_id {page_id}")
+                return "ok", 200
+
             for a in attachments:
                 if a.get("type") == "share":
                     media_id = a["payload"]["id"]
-                    caption = get_caption_from_media(media_id)
+                    caption = get_caption_from_media(media_id, token)
 
                     if not caption:
-                        send_reply_to_user(sender_id, "Не удалось получить описание поста.")
+                        send_reply_to_user(sender_id, "Не удалось получить описание поста.", token)
                         return "ok", 200
 
                     article = extract_article(caption)
                     if not article:
-                        send_reply_to_user(sender_id, "Не удалось распознать артикул.")
+                        send_reply_to_user(sender_id, "Не удалось распознать артикул.", token)
                         return "ok", 200
 
                     response = search_article_in_sheet(article)
-                    send_reply_to_user(sender_id, response)
+                    send_reply_to_user(sender_id, response, token)
                     return "ok", 200
 
-            # 💬 Просто текст
             if message:
-                send_reply_to_user(sender_id, f"Вы написали: {message}")
+                send_reply_to_user(sender_id, f"Вы написали: {message}", token)
 
         except Exception as e:
             logging.exception("Ошибка при обработке входящего IG сообщения")
